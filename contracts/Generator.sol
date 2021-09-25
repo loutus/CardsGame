@@ -3,45 +3,41 @@
 pragma solidity ^0.8.0;
 
 import "./Game.sol";
+import "./Market.sol";
 
 contract Generator{
 
-    Game game;
+    address owner;
+    Market public market;
+    Game[100] public games;
+    uint256 public gameIndex;
 
-    constructor(uint256 set_x, uint256 set_y) {
-        game = new Game(set_x, set_y);
-    }
-
-    function _x() public view returns(uint256) {
-        return game.x();
-    }
-    
-    function _y() public view returns(uint256) {
-        return game.y();
+    constructor() {
+        owner = msg.sender;
+        market = new Market(address(this));
     }
 
-    function _remaining() public view returns(uint256) {
-        return game.cardsRemaining();
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
     }
 
-    function _ownerOfCard(uint256 _cardNum) public view returns(address) {
-        return game.ownerOfCard(_cardNum);
+    function newGame(uint256 set_X, uint256 set_Y, uint256 baseFee) public onlyOwner {
+        require(gameIndex < 100, "this is the end");
+        games[gameIndex] = new Game(set_X, set_Y, baseFee, market.link(), address(this), owner);
+        market.newGame(games[gameIndex].link());
+        gameIndex ++;
     }
 
-    function _userCards(address _userAddr) public view returns(uint256[] memory) {
-        return game.userCards(_userAddr);
+    function endGame(uint256 _gameIndex) public onlyOwner returns(address) {
+        return games[_gameIndex].end();
     }
 
-    function _signIn(string memory _username) public{
-        game.signIn(_username);
+    function sellCard(uint256 _gameIndex, uint256 _cardNum, uint256 _minPrice) public onlyOwner {
+        market.acceptBid(_gameIndex, _cardNum, _minPrice);
     }
-    
-    function _buyCards(uint256 _numberOfCards) public {
-        game.buyCards(_numberOfCards);
+
+    function withdraw(uint256 _gameIndex) public onlyOwner {
+        games[_gameIndex].withdraw();
     }
-    
-    function resetGameContract(uint256 set_x, uint256 set_y) public{
-        game = new Game(set_x, set_y);
-    }
-    
 }
